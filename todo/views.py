@@ -1,5 +1,6 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404, redirect, render
 
 from .forms import TodoItemForm
@@ -14,9 +15,12 @@ def index(request):
         'pending_todos': 0,
     }
     if request.user.is_authenticated:
-        user_todos = TodoItem.objects.filter(user=request.user)
-        context['total_todos'] = user_todos.count()
-        context['completed_todos'] = user_todos.filter(is_completed=True).count()
+        counts = TodoItem.objects.filter(user=request.user).aggregate(
+            total=Count('id'),
+            completed=Count('id', filter=Q(is_completed=True)),
+        )
+        context['total_todos'] = counts['total']
+        context['completed_todos'] = counts['completed']
         context['pending_todos'] = context['total_todos'] - context['completed_todos']
 
     return render(request, 'index.html', context)
